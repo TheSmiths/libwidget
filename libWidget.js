@@ -2,8 +2,9 @@
  * @class LibWidget
  * The library used to easily configure widgets.
  */
-var LibWidget = function () {
+var LibWidget = function (widget) {
     this.TAG = "libWidget";
+    this.widget = widget;
     this.reset();
 };
 
@@ -18,12 +19,9 @@ LibWidget.prototype = {
          * */
         /* Grab the related rule, which is an array of either properties or functions. */
         if (!_.has(this.rules, ruleId)) { return false; }
-        Ti.API.debug(this.TAG, "Apply rule", ruleId, JSON.stringify(inputValue));
         var rule = this.rules[ruleId];
-        //Ti.API.debug(this.TAG, "Rule targets => ", rule);
         /* Browse each target of the rule to build corresponding property */
         _.each(rule, function (target) {
-            Ti.API.debug(this.TAG, "Rule's target", target);
             /* Basic case, target is a string which represent the corresponding property to set */
             if (_.isString(target)) {
                 var elementId = target.match(/^(#[^\.]+)\.?/)[1];
@@ -47,26 +45,28 @@ LibWidget.prototype = {
         return true;
     },
 
-    parseAndApplyConfig: function (widget, config) {
+    build: function (config, container) {
         /**
-         * @method parseAndApplyConfig
+         * @method build
          * Execute rules within the config context. 
-         * @param {appcelerator: Alloy.Controller} widget An instance to the related widget.
          * @param {Object} config An object that describe the user config for the widget as
          * described in a .tss file.
-         * @return {Object} The configuration minus keys handled as rules.
+         * @param {appcelerator: Titanium.UI.View} [container] The top level container to which
+         * apply the rules. If not supplied, the top level view will be used. 
+         * @return {Object|boolean} The configuration minus keys handled as rules or false in case
+         * of error.
          */
-        Ti.API.debug(this.TAG, "parseConfig", config);
         if (_.isObject(config)) {
             _.each(config, function (value, key) {
                 if (this._applyRule(key, value)) { delete config[key]; }
             }, this);
         } else {
             Ti.API.error(this.TAG, "parseConfig failed with", config);
+            return false;
         }
-        Ti.API.debug(this.TAG, "parseConfig processed styles", this.styleProperties);
-        Ti.API.debug(this.TAG, JSON.stringify(this.styleProperties));
-        widget.updateViews(this.styleProperties);
+        this.widget.updateViews(this.styleProperties);
+        var topLevelContainer = container || this.widget.getView();
+        topLevelContainer.applyProperties(config);
         return config;
     },
 
@@ -78,10 +78,12 @@ LibWidget.prototype = {
         * @param {Mixed} target The targeted property in the widget or a  process/function that
         *   would rather handle the property value into some special treatment instead of blindy bind
         *   it to a targetted identifier.
+        * @return {LibWidget} This instance of libWidget
         * */
         //Ti.API.debug(this.TAG, "Adding rule to the set", publicIdentifier, target);
         if (!_.has(this.rules, publicIdentifier)) { this.rules[publicIdentifier] = []; }
         this.rules[publicIdentifier] = this.rules[publicIdentifier].concat(_.flatten([target]));
+        return this.getAccessibleFunctions();
     },
 
     addRules: function (rules) {
@@ -90,8 +92,10 @@ LibWidget.prototype = {
          * Used to define several rules in one call. See addRule for more details.
          * @param {Object} rules All rules to define. Keys will be used as public identifier, and
          *  values as targets.
+         * @return {LibWidget} This instance of libWidget
          */
         _.each(rules, function (target, id) { this.addRule(id, target); }, this);
+        return this.getAccessibleFunctions();
     },
 
     setProperty: function (id, propertyChain, value) {
@@ -101,7 +105,8 @@ LibWidget.prototype = {
          * @param {string} id The property id, as referenced in the View.
          * @param {string} propertyChain The property that have to be set. Might be a nested
          *  property such as my.nested.property
-         * @param {Mixed} value The value that has to be set, str or Number.
+         * @param {string|Number|Object} value The value that has to be set.
+         * @return {LibWidget} This instance of libWidget
          */
 
         /* Properties might be simple such as 'backgroundColor', or more complex such as
@@ -118,6 +123,7 @@ LibWidget.prototype = {
 
         /* Finally, set the value as the last element of our tree */
         currentRootObject[lastProperty] = value;
+        return this.getAccessibleFunctions();
     },
 
     getAccessibleFunctions: function () {
@@ -126,13 +132,17 @@ LibWidget.prototype = {
          * Use to build an object of accessible functions from the outside.
          * @return {Object} An object of all public/accessible functions
          * */
-        /* Select all functions */
-        var _exports = _.omit(this.__proto__, 'getAccessibleFunctions', '_applyRule'),
-            self = this;
-        /* Then, wrap them into callable ... callers */
-        return _.object(_.map(_exports, function (accessibleFunction, name) {
-            return [name, function() { accessibleFunction.apply(self, arguments); }];
-        }));
+        if (!this.accessibleFunctions) {
+            /* Select all functions */
+            var _exports = _.omit(this.__proto__, 'getAccessibleFunctions', '_applyRule'),
+                self = this;
+
+            /* Then, wrap them into callable ... callers */
+            this.accessibleFunctions = _.object(_.map(_exports, function (accessibleFunction, name) {
+                return [name, function() { return accessibleFunction.apply(self, arguments); }];
+            }));
+        }
+        return this.accessibleFunctions;
     },
 
     reset: function () {
@@ -141,16 +151,38 @@ LibWidget.prototype = {
     }
 };
 
-/* Make the exports */
+/* Do the exports */
 _.extend(exports, {
-    newInstance: function() {
-    /**
-     * @static
-     * @method newInstance
-     * Instantiate the library.
-     * @return {LibWidget} An instance of the library
-     */
-        var libWidgetInstance = new LibWidget();
+    init: function () {
+        /**
+        * @static
+        * @method init
+        * Initialize the library. 
+        */
+        /* Override Alloy methods to allow the use of 'construct' method */
+        (function (_createWidget, _createController) {
+            Alloy.createWidget = function (id, name, args) {
+                var W = _createWidget(id, name, args);
+                if (_.isFunction(W.construct)) W.construct.call(W, args);
+                return W;
+            };
+            Alloy.createController = function (name, args) {
+                var C = _createController(name, args);
+                if (_.isFunction(C.construct)) C.construct.call(C, args);
+                return C; 
+            };
+        })(Alloy.createWidget, Alloy.createController);
+    },
+
+    newBuilder: function (widgetInstance) {
+        /**
+        * @static
+        * @method newBuilder 
+        * Instantiate the a style builder.
+        * @param {appcelerator: Alloy.Controller} widget An instance to the related widget.
+        * @return {LibWidget} An instance of the library
+        */
+        var libWidgetInstance = new LibWidget(widgetInstance);
         return libWidgetInstance.getAccessibleFunctions();
     }
 });
