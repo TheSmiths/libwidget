@@ -1,12 +1,13 @@
 # LibWidget
-A small framework to create and customize Alloy widgets from controller.
+A small framework to create and customize Alloy widgets from controller. Documentation is visible
+right here : [libwidget documentation](http://ktorz.github.io/libwidget)
 
 ## How to install
 
 Copy the `libWidget.js` inside your **lib** folder; then in your `app/alloy.js`, just require the
 library as follow :
 
-`var libWidget = require("libWidget");`
+`var libWidget = require("libWidget").init();`
 
 Then, every widget or component that is also requesting the library will work.
 
@@ -24,7 +25,7 @@ good way to initialize your widget properties such as rules.
 For example, inside `myWidgetController.js` :
 
 ```javascript
-var libWidget = new require("libWidget").newHandler(this);
+var libWidget = require("libWidget").newBuilder(this);
 
 _.extend(this, {
     construct: function (config) {
@@ -38,7 +39,7 @@ _.extend(this, {
             },
             "accessor4" : "#elem4"
         });
-        $.container.applyProperties(libWidget.parseAndApplyConfig(config));
+        $libWidget.build(config);
     },
 
     ... // Some code 
