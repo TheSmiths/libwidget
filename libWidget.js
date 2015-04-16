@@ -83,7 +83,7 @@ LibWidget.prototype = {
         //Ti.API.debug(this.TAG, "Adding rule to the set", publicIdentifier, target);
         if (!_.has(this.rules, publicIdentifier)) { this.rules[publicIdentifier] = []; }
         this.rules[publicIdentifier] = this.rules[publicIdentifier].concat(_.flatten([target]));
-        return this.getAccessibleFunctions();
+        return this._getAccessibleFunctions();
     },
 
     addRules: function (rules) {
@@ -95,7 +95,7 @@ LibWidget.prototype = {
          * @return {LibWidget} This instance of libWidget
          */
         _.each(rules, function (target, id) { this.addRule(id, target); }, this);
-        return this.getAccessibleFunctions();
+        return this._getAccessibleFunctions();
     },
 
     setProperty: function (id, propertyChain, value) {
@@ -123,18 +123,18 @@ LibWidget.prototype = {
 
         /* Finally, set the value as the last element of our tree */
         currentRootObject[lastProperty] = value;
-        return this.getAccessibleFunctions();
+        return this._getAccessibleFunctions();
     },
 
-    getAccessibleFunctions: function () {
-        /**
+    _getAccessibleFunctions: function () {
+        /*
          * @method getAccessibleFunctions
          * Use to build an object of accessible functions from the outside.
          * @return {Object} An object of all public/accessible functions
          * */
         if (!this.accessibleFunctions) {
             /* Select all functions */
-            var _exports = _.omit(this.__proto__, 'getAccessibleFunctions', '_applyRule'),
+            var _exports = _.omit(this.__proto__, '_getAccessibleFunctions', '_applyRule'),
                 self = this;
 
             /* Then, wrap them into callable ... callers */
@@ -183,6 +183,6 @@ _.extend(exports, {
         * @return {LibWidget} An instance of the library
         */
         var libWidgetInstance = new LibWidget(widgetInstance);
-        return libWidgetInstance.getAccessibleFunctions();
+        return libWidgetInstance._getAccessibleFunctions();
     }
 });
