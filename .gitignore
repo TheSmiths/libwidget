@@ -1,6 +1,5 @@
 # Created by https://www.gitignore.io
 .DS_Store
-Resources
 build.log
 build
 npm-debug.log
