@@ -2,10 +2,10 @@
 A small framework to create and customize Alloy widgets from controller. 
 
 Documentation is visible right here : [libwidget
-documentation](http://ktorz.github.io/libwidget/#!/api/LibWidget).
+documentation](http://thesmiths.github.io/libwidget/#!/api/LibWidget).
 
 An overview of the framework is also accessible on github : [quick
-examples](https://github.com/ktorz/libwidgetExamples).
+examples](https://github.com/thesmiths/libwidgetExamples).
 
 ## How to install
 
