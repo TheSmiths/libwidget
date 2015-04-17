@@ -1,6 +1,11 @@
 # LibWidget
-A small framework to create and customize Alloy widgets from controller. Documentation is visible
-right here : [libwidget documentation](http://ktorz.github.io/libwidget)
+A small framework to create and customize Alloy widgets from controller. 
+
+Documentation is visible right here : [libwidget
+documentation](http://ktorz.github.io/libwidget/#!/api/LibWidget).
+
+An overview of the framework is also accessible on github : [quick
+examples](https://github.com/ktorz/libwidgetExamples).
 
 ## How to install
 
@@ -39,7 +44,7 @@ _.extend(this, {
             },
             "accessor4" : "#elem4"
         });
-        $libWidget.build(config);
+        libWidget.build(config);
     },
 
     ... // Some code 
