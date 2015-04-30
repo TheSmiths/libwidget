@@ -8,41 +8,60 @@ var LibWidget = function (widget) {
     this.reset();
 };
 
-LibWidget.prototype = {
-    /*
-    * Apply a rule once the input value is known.
-    * @param {string} ruleId The rule's public identifier; should correspond to a previously
-    *  defined rule.
-    * @param {string} inputValue The value read from the config file that has to be set.
-    * @return {boolean} true if the rule exist and have been applied, false otherwise.
-    * */
-    _applyRule: function (ruleId, inputValue) {
-        /* Grab the related rule, which is an array of either properties or functions. */
-        if (!_.has(this.rules, ruleId)) { return false; }
-        var rule = this.rules[ruleId];
+var Rule = function (id, options) {
+    if (!id) throw(errTag + 'Missing id');
+
+    this.errTag = 'RuleError: ';
+    this.id = id;
+    this.targets = [];
+    this.addOptions(options || {});
+};
+
+_.extend(Rule.prototype, {
+    addTargets: function (targets) {
+        if (!targets) throw(this.errTag + 'Missing or invalid target(s)');
+        Array.prototype.push.apply(this.targets, _.flatten([targets]));
+    }, 
+
+    addOptions: function (options) {
+        if (options && !_.isObject(options)) throw(this.errTag + 'Invalid options');
+        _.extend(this.options, options);
+    },
+
+    apply: function (styleValue, builder) {  
         /* Browse each target of the rule to build corresponding property */
-        _.each(rule, function (target) {
+        _.each(this.targets, function (target) {
             /* Basic case, target is a string which represent the corresponding property to set */
             if (_.isString(target)) {
                 var elementId = target.match(/^(#[^\.]+)\.?/)[1];
-                if (_.isObject(inputValue)) {
+                if (_.isObject(styleValue)) {
                     /* First case, the input is an object, so only the id considered */
-                    _.each(inputValue, function (propertyValue, propertyName) {
-                        this.setProperty(elementId, propertyName, propertyValue);
-                    }, this);
+                    _.each(styleValue, function (propertyValue, propertyName) {
+                        builder.setProperty(elementId, propertyName, propertyValue);
+                    });
                 } else {
                     /* The input is a value that should be assigned to the given property under the
                      * given element id */
                     var propertyChain = target.split(elementId)[1].substr(1);
-                    this.setProperty(elementId, propertyChain, inputValue);
+                    builder.setProperty(elementId, propertyChain, styleValue);
                 }
             } else if (_.isFunction(target)) {
                 /* If the target is a function, then, just execute the function; The function should be
                  * in charge of declaring properties if any. */
-                target(inputValue);
+                target(styleValue);
+            } else {
+                throw(this.errTag + 'Unable to apply rule "' + this.id + '"');
             }
         }, this);
         return true;
+    }
+});
+
+_.extend(LibWidget.prototype, {
+    /* Apply a rule if it exists. Otherwise, just return false. */
+    _applyRule: function (key, value) {
+        if (!_.has(this.rules, key)) { return false; } 
+        return this.rules[key].apply(value, this);
     },
 
     /**
@@ -74,14 +93,16 @@ LibWidget.prototype = {
     * @method addRule
     * Add a rule to the rules set;
     * @param {string} publicIdentifier The id use to access an internal style property in the module
-    * @param {Mixed} target The targeted property in the widget or a  process/function that
-    *   would rather handle the property value into some special treatment instead of blindy bind
-    *   it to a targetted identifier.
+    * @param {string|Array|Function} targets The targeted property/properties in the widget 
+    * or a function that would rather handle the property value into some special treatment instead
+    * of blindy bind it to a targetted identifier.
     * @return {LibWidget} This instance of libWidget
     * */
-    addRule: function (publicIdentifier, target) {
-        if (!_.has(this.rules, publicIdentifier)) { this.rules[publicIdentifier] = []; }
-        this.rules[publicIdentifier] = this.rules[publicIdentifier].concat(_.flatten([target]));
+    addRule: function (publicIdentifier, targets) {
+        if (!_.has(this.rules, publicIdentifier)) {
+            this.rules[publicIdentifier] = new Rule(publicIdentifier); 
+        }
+        this.rules[publicIdentifier].addTargets(targets);
         return this;
     },
 
@@ -131,7 +152,7 @@ LibWidget.prototype = {
         this.styleProperties = {};
         this.rules = {};
     }
-};
+});
 
 /**
 * @static

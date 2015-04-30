@@ -1,5 +1,5 @@
 task :doc do
-    system("jsduck --config jsduck.json libWidget.js")
+    system("jsduck --config jsduck.json index.js")
     system("mv documentation/* .")
 end
 
