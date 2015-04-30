@@ -1,10 +1,10 @@
 {
-	"--title": "LibWidget 0.3",
-	"--output": "./documentation",
-	"--touch-examples": true,
-	"--no-source": true,
-	"--footer": "copyright  2015",
-	"--ignore-global": true,
+    "--title": "LibWidget 0.3",
+    "--output": "./documentation",
+    "--touch-examples": true,
+    "--no-source": true,
+    "--footer": "copyright  2015",
+    "--ignore-global": true,
     "--foreign-types": [
         "appcelerator   ~>  http://docs.appcelerator.com/titanium/3.0/#!/api/"
     ]
