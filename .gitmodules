@@ -1,0 +1,4 @@
+[submodule "test/test-libwidget/app/lib/libwidget"]
+	path = test/test-libwidget/app/lib/libwidget
+	url = https://github.com/thesmiths/libwidget.git
+	branch = master
