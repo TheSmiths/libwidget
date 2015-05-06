@@ -21,14 +21,14 @@ _.extend(Rule.prototype, {
     addTargets: function (targets) {
         if (!targets) throw(this.errTag + 'Missing or invalid target(s)');
         Array.prototype.push.apply(this.targets, _.flatten([targets]));
-    }, 
+    },
 
     addOptions: function (options) {
         if (options && !_.isObject(options)) throw(this.errTag + 'Invalid options');
         _.extend(this.options, options);
     },
 
-    apply: function (styleValue, builder) {  
+    apply: function (styleValue, builder) {
         /* Browse each target of the rule to build corresponding property */
         _.each(this.targets, function (target) {
             /* Basic case, target is a string which represent the corresponding property to set */
@@ -54,23 +54,42 @@ _.extend(Rule.prototype, {
             }
         }, this);
         return true;
+    },
+
+    accessorName: function () {
+        return (function(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        })(this.id);
+    },
+
+    accessors: function (target, widget) {
+        var elementId = target.match(/^(#[^\.]+)\.?/)[1],
+            propertyChain = target.split(elementId)[1].substr(1).split("."),
+            lastProperty = propertyChain.pop(),
+            targetObject = widget[elementId.substr(1)];
+        /* Crawl property chain to get targeted alloy object (if necessary) */
+        _.each(propertyChain, function (property) {
+            targetObject = (targetObject[property] = {});
+        });
+        widget["get"+this.accessorName()] = function() { return targetObject[lastProperty]; };
+        widget["set"+this.accessorName()] = function(value) { widget[elementId.substr(1)][lastProperty] = value; };
     }
 });
 
 _.extend(LibWidget.prototype, {
     /* Apply a rule if it exists. Otherwise, just return false. */
     _applyRule: function (key, value) {
-        if (!_.has(this.rules, key)) { return false; } 
+        if (!_.has(this.rules, key)) { return false; }
         return this.rules[key].apply(value, this);
     },
 
     /**
     * @method build
-    * Execute rules within the config context. 
+    * Execute rules within the config context.
     * @param {Object} config An object that describe the user config for the widget as
     * described in a .tss file.
     * @param {appcelerator: Titanium.UI.View} [container] The top level container to which
-    * apply the rules. If not supplied, the top level view will be used. 
+    * apply the rules. If not supplied, the top level view will be used.
     * @return {Object|boolean} The configuration minus keys handled as rules or false in case
     * of error.
     */
@@ -93,14 +112,19 @@ _.extend(LibWidget.prototype, {
     * @method addRule
     * Add a rule to the rules set;
     * @param {string} publicIdentifier The id use to access an internal style property in the module
-    * @param {string|Array|Function} targets The targeted property/properties in the widget 
+    * @param {string|Array|Function} targets The targeted property/properties in the widget
     * or a function that would rather handle the property value into some special treatment instead
     * of blindy bind it to a targetted identifier.
     * @return {LibWidget} This instance of libWidget
     * */
     addRule: function (publicIdentifier, targets) {
         if (!_.has(this.rules, publicIdentifier)) {
-            this.rules[publicIdentifier] = new Rule(publicIdentifier); 
+            var rule = new Rule(publicIdentifier);
+            this.rules[publicIdentifier] = rule;
+            /* If target is a string Accessors will be created. */
+            if(typeof targets === "string") {
+                rule.accessors(targets, this.widget);
+            }
         }
         this.rules[publicIdentifier].addTargets(targets);
         return this;
@@ -135,11 +159,10 @@ _.extend(LibWidget.prototype, {
         propertyChain = propertyChain.split(".");
         var lastProperty = propertyChain.pop(),
             currentRootObject = this.styleProperties[id];
-
+        /* Crawl property tree */
         _.each(propertyChain, function (property) {
             currentRootObject = (currentRootObject[property] = {});
         });
-
         /* Finally, set the value as the last element of our tree */
         currentRootObject[lastProperty] = value;
         return this;
@@ -157,7 +180,7 @@ _.extend(LibWidget.prototype, {
 /**
 * @static
 * @method init
-* Initialize the library. 
+* Initialize the library.
 */
 /* Override Alloy methods to allow the use of 'construct' method */
 exports.init = function () {
@@ -170,18 +193,18 @@ exports.init = function () {
         Alloy.createController = function (name, args) {
             var C = _createController(name, args);
             if (_.isFunction(C.construct)) C.construct.call(C, args);
-            return C; 
+            return C;
         };
     })(Alloy.createWidget, Alloy.createController);
 };
 
 /**
 * @static
-* @method newBuilder 
+* @method newBuilder
 * Instantiate the a style builder.
 * @param {appcelerator: Alloy.Controller} widget An instance to the related widget.
 * @return {LibWidget} An instance of the library
 */
 exports.newBuilder = function (widgetInstance) {
-    return new LibWidget(widgetInstance); 
+    return new LibWidget(widgetInstance);
 };
