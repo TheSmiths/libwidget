@@ -161,8 +161,9 @@ _.extend(LibWidget.prototype, {
             currentRootObject = this.styleProperties[id];
         /* Crawl property tree */
         _.each(propertyChain, function (property) {
-            currentRootObject = (currentRootObject[property] = {});
-        });
+            /* Don't override the full object to change a single property */
+            currentRootObject = (currentRootObject[property] = this.widget[id.substr(1)][property] || {});
+        }, this);
         /* Finally, set the value as the last element of our tree */
         currentRootObject[lastProperty] = value;
         return this;
